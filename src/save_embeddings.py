@@ -1,3 +1,4 @@
+# save_embeddings.py
 import openai
 import pickle
 import csv

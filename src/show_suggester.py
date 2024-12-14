@@ -9,12 +9,18 @@ from dotenv import load_dotenv
 import os
 from PIL import Image
 from io import BytesIO
+import openai
+
 # Load environment variables from .env file
 load_dotenv()
 # Get the API key from the environment
-api_key = os.getenv("LIGHTX_API_KEY")
-if not api_key:
+api_key_lightx = os.getenv("LIGHTX_API_KEY")
+if not api_key_lightx:
     print("Error: Missing API key.")
+api_key_openai = os.getenv("OPENAI_API_KEY")
+if not api_key_openai:
+    print("Error: Missing API key.")
+    
 
 def load_embeddings(filename):
     try:
@@ -197,8 +203,67 @@ def generate_image_with_lightx(show_name, show_description, api_key):
         return None
 
 
-def shows_creator(recommendations, tv_shows):
+def shows_creator(recommendations, user_input, api_key_openai):
+    # Prepare OpenAI API key
+    openai.api_key = api_key_openai
 
+    # Step 1: Create a prompt for generating a new TV show based on user input
+    user_input_prompt = f"""Generate a new TV show based on the fact that the user loved these shows: {', '.join(user_input)}.
+    The new show should be original and exciting, with a unique storyline and a name that fits the genre of the input shows.
+    Return the output as a plain text in this format: show name:\n description:'"""
+
+    # Step 2: Create the conversation list for OpenAI API
+    conversation = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": user_input_prompt},
+    ]
+
+    # Step 3: Generate the custom show #1 based on user input using ChatCompletion
+    response1 = openai.ChatCompletion.create(
+        model="gpt-4o-mini",  # Use the gpt-4o-mini model
+        messages=conversation,
+        temperature=0.7,
+        max_tokens=150,
+    )
+
+    # Step 4: Create a prompt for generating a new TV show based on recommended shows
+    recommended_shows_prompt = f"""Generate a new TV show based on the recommendation: {recommendations[0][0]}. 
+    Make it interesting, creative, and related to the genre of the recommended show.
+    Return the output as a plain text in this format: show name:\n description:'"""
+
+    # Step 5: Create the conversation list for OpenAI API
+    conversation = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": recommended_shows_prompt},
+    ]
+
+    # Step 6: Generate the custom show #2 based on recommended shows using ChatCompletion
+    response2 = openai.ChatCompletion.create(
+        model="gpt-4o-mini",  # Use the gpt-4o-mini model
+        messages=conversation,
+        temperature=0.7,
+        max_tokens=150,
+    )
+
+    # Step 7: Extract the show names and descriptions from OpenAI's response
+    def parse_show_response(response):
+        show_text = response["choices"][0]["message"]["content"].strip()
+        lines = show_text.split("\n")
+        show_name = lines[0].replace("show name:", "").strip()
+        show_description = lines[1].replace("description:", "").strip()
+        return show_name, show_description
+
+    # Extract name and description for both shows
+    show1_name, show1_description = parse_show_response(response1)
+    show2_name, show2_description = parse_show_response(response2)
+
+    # Step 8: Return the custom shows for display
+    return (
+        f"I have also created just for you two shows which I think you would love.\n\n"
+        f"Show #1 is based on the fact that you loved the input shows that you gave me. Its name is {show1_name} and it is about {show1_description}.\n\n"
+        f"Show #2 is based on the shows that I recommended for you. Its name is {show2_name} and it is about {show2_description}.\n\n"
+        f"Here are also the 2 TV show ads. Hope you like them!"
+    )
 
 
 # Cosine similarity function
@@ -232,15 +297,16 @@ def main():
         print(f"{recommendation[0]} ({recommendation[1]}%)")
 
     # Step 4: Generate and display custom show suggestions
-    custom_show1, custom_show2 = shows_creator(
-        recommendations, tv_shows
-    )
-    print(custom_show1)
-    print(custom_show2)
+    custom_show_message = shows_creator(recommendations,user_shows, api_key_openai)
+    print(custom_show_message)
     print("Here are also the 2 TV show ads. Hope you like them!")
-    # Generate image for the top 2 recommendations
-    image1 = generate_image_with_lightx(recommendations[0][0], api_key)
-    image2 = generate_image_with_lightx(recommendations[1][0], api_key)
+    # Generate images for the top 2 recommendations
+    image1 = generate_image_with_lightx(
+        recommendations[0][0], tv_shows[0]["description"], api_key_lightx
+    )
+    image2 = generate_image_with_lightx(
+        recommendations[1][0], tv_shows[1]["description"], api_key_lightx
+    )
 
     # Show the images
     if image1:

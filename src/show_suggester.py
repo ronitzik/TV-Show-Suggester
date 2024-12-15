@@ -94,12 +94,11 @@ def generate_recommendations(user_shows, tv_shows, embeddings_dict, num_trees=10
     # Step 1: Build an Annoy index for all TV show embeddings
     dim = len(
         next(iter(normalized_embeddings_dict.values()))
-    )  # Get the embedding dimension (assuming all embeddings are the same size)
+    )  
 
     # Create an Annoy index
-    annoy_index = AnnoyIndex(
-        dim, "angular"
-    )
+    annoy_index = AnnoyIndex(dim, "angular")
+
     # Add embeddings to the Annoy index
     for i, show in enumerate(tv_shows):
         show_name = show["name"].lower()  # Normalize the TV show name to lowercase
@@ -107,9 +106,8 @@ def generate_recommendations(user_shows, tv_shows, embeddings_dict, num_trees=10
         if show_embedding is not None:
             annoy_index.add_item(i, show_embedding)
 
-    # Build the index 
-    annoy_index.build(num_trees)  # num_trees controls the accuracy/speed tradeoff
-
+    # Build the index
+    annoy_index.build(num_trees) 
     # Step 2: Get embeddings for user liked shows and calculate the average vector
     user_embeddings = []
     for user_show in user_shows:
@@ -140,12 +138,14 @@ def generate_recommendations(user_shows, tv_shows, embeddings_dict, num_trees=10
     recommendations = []
     for idx, dist in zip(nearest_neighbors[0], nearest_neighbors[1]):
         show = tv_shows[idx]
-        similarity_score = (
-            1 - dist
-        )  # Convert the angular distance back to similarity score (1 - distance)
 
-        similarity_percentage = min(round(similarity_score * 100, 3), 100)
+        similarity_score = 1 - dist
+        similarity_score = max(0, min(similarity_score, 1))
+
+        # Convert to percentage
+        similarity_percentage = round(similarity_score * 100, 3)
         recommendations.append((show["name"], similarity_percentage))
+
     # Step 6: Filter out user input shows from recommendations
     recommendations = [
         (show_name, score)
@@ -218,7 +218,6 @@ def generate_image_with_lightx(show_name, show_description, api_key):
             retries += 1
 
         if image_url:
-            # You can use the image URL to download or display the image
             image_response = requests.get(image_url)
             if image_response.status_code == 200:
                 img = Image.open(BytesIO(image_response.content))
@@ -291,8 +290,6 @@ def shows_creator(recommendations, user_input, api_key_openai):
         show_description = show_description.group(1) if show_description else None
 
         return show_name, show_description
-    print(response1)
-    print(response2)
     show1_name, show1_description = parse_show_response(response1)
     show2_name, show2_description = parse_show_response(response2)
 
@@ -339,18 +336,18 @@ def main():
     custom_show_message = shows_creator(recommendations,user_shows, api_key_openai)
     print(custom_show_message)
     # Generate images for the top 2 recommendations
-    # image1 = generate_image_with_lightx(
-    #     recommendations[0][0], tv_shows[0]["description"], api_key_lightx
-    # )
-    # image2 = generate_image_with_lightx(
-    #     recommendations[1][0], tv_shows[1]["description"], api_key_lightx
-    # )
+    image1 = generate_image_with_lightx(
+        recommendations[0][0], tv_shows[0]["description"], api_key_lightx
+    )
+    image2 = generate_image_with_lightx(
+        recommendations[1][0], tv_shows[1]["description"], api_key_lightx
+    )
 
-    # # Show the images
-    # if image1:
-    #     image1.show()
-    # if image2:
-    #     image2.show()
+    # Show the images
+    if image1:
+        image1.show()
+    if image2:
+        image2.show()
 
 
 if __name__ == "__main__":

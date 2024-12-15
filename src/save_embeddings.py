@@ -9,14 +9,17 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-def get_embedding(text):
+def get_embedding(show_name, description, genre):
+    # Concatenate genre and description
+    text = f"{show_name} {genre} {description}"
+
     response = openai.Embedding.create(
-        model="text-embedding-ada-002", 
+        model="text-embedding-ada-002",
         input=text,
     )
     return response["data"][0]["embedding"]
 
-
+    
 def load_tv_shows(csv_file):
     tv_shows = []
     with open(csv_file, "r", encoding="UTF-8") as file:
@@ -36,7 +39,7 @@ def save_embeddings(tv_shows, filename):
     embeddings_dict = {}
     for show in tv_shows:
         print(f"Fetching embedding for {show['name']}...")
-        embedding = get_embedding(show["description"])
+        embedding = get_embedding(show["name"], show["description"], show["genre"])
         embeddings_dict[show["name"]] = embedding
 
     with open(filename, "wb") as f:
